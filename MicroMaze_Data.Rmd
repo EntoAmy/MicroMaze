@@ -1,0 +1,58 @@
+---
+title: "MicroMaze_Hons_Data"
+author: "Amy Smith"
+date: "2025-07-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r setup, include=FALSE}
+# Install/Load  libraries
+install.packages("tidyverse")
+install.packages("ggplot2")
+install.packages("dplyr")
+install.packages("paletteer")
+
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(paletteer)
+```
+
+
+```{r convert data to long format}
+
+# Read the CSV file
+data_ALG <- read.csv("MicroMaze 04_2025_Data - Algeria.csv")
+data_DRIE <- read.csv("MicroMaze 04_2025_Data - Driehoek.csv")
+
+# Clean the data: remove rows with missing microclimate data 
+cleaned_data <- data %>%
+  drop_na('Surface Temp (°c)', 'Ground Temp (°c)', 'Wind (m/s^-1)', 'Humidity (%)')
+
+
+
+
+# Convert to long format
+long_data <- cleaned_data %>%
+  # Select relevant columns
+  select(Date, `M/N/E/D`, Plot, SampleID,
+         FieldID_1, FieldID_2, FieldID_3,
+         Abundance_1, Abundance_2, Abundance_3) %>%
+  
+  # Convert abundance columns to numeric
+  mutate(across(starts_with("Abundance_"), ~ as.numeric(.))) %>%
+  
+  # Pivot to long format
+  pivot_longer(
+    cols = c(FieldID_1, FieldID_2, FieldID_3,
+             Abundance_1, Abundance_2, Abundance_3),
+    names_to = ".value",
+    names_pattern = "(FieldID|Abundance)"
+  ) 
+
+```
