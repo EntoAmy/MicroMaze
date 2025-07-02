@@ -142,11 +142,11 @@ ggplot(Long_All, aes(x = S, y = Abundance, fill = `M.N.E.D`)) +
   geom_boxplot(outlier.size = 0.8) +
   facet_wrap(~ Site, scales = "free_y") +
   labs(title = "Abundance of Each Species over a Temporal Gradient (Faceted by Site)",
-       x = "Species", y = "Abundance") +
+       x = "Species", y = "Abundance", scale = 0.2) +
   scale_y_log10() +
   theme_minimal() +
   paletteer::scale_fill_paletteer_d("PNWColors::Shuksan2") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+  theme(axis.text.x = element_text(angle = 65, hjust = 1),
         strip.text = element_text(face = "bold"))
 
 ```
@@ -199,58 +199,77 @@ ggraph(network, layout = "fr") +
   labs(title = "Species–Habitat Type Network")
 ```
 
-```{r Sankey Graph, dev= "png"}
+```{r Sankey Graph, dev= "png", fig.height= 12}
 
 sankey_data <- Long_All %>%
   filter(!is.na(S),S != "", !is.na(M.N.E.D)) %>%
   count(M.N.E.D, S, name = "Frequency")  # creates a count column
 
-ggplot(sankey_data,
-       aes(axis1 = S, axis2 = M.N.E.D, y = Frequency)) +
-  geom_alluvium(aes(fill = S), width = 1/12) +
-  geom_stratum(width = 1/12, fill = "grey90", color = "black") +
-  geom_text(stat = "stratum", aes(label = after_stat(stratum)),
-            size = 3, hjust = -0.1) +
-  scale_x_discrete(limits = c("Species","M.N.E.D"), expand = c(.1, .1)) +
-  labs(title = "Sankey Diagram: Species Occurrence by Time of Day",
-       x = NULL, y = "Number of Observations") +
-  scale_fill_viridis_d(option = "C") +
-  theme_minimal()
+sankey_data$S <- factor(sankey_data$S, levels = sort(unique(sankey_data$S)))
 
+ggplot(sankey_data,
+        aes(axis1 = M.N.E.D, axis2 = S, y = Frequency)) +
+    geom_alluvium(aes(fill = S), width = 1/7) +
+  geom_stratum(width = 1/7, fill = "white", color = "black") +
+  geom_text(stat = "stratum",
+            aes(label = after_stat(stratum),
+                size =  3),
+            fontface = "italic", hjust = 0.3, show.legend = FALSE) +
+  scale_size_identity() + 
+  scale_x_discrete(limits = c("M.N.E.D", "Species"), expand = c(0.01,0.01)) +
+  paletteer::scale_fill_paletteer_d("ggsci::default_igv", direction = 1)+
+  labs(title = "Sankey Diagram: Species Occurrence by Time of Day",
+       x = NULL, y = "Number of Observations", size = 4) +
+  theme_minimal(base_size = 15) +
+  theme(
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA),
+    axis.text.y = element_text(size = 3),
+    plot.margin = margin(t = 10, r = 120, b = 10, l = 10),
+    legend.position = "none"
+  ) +
+  coord_cartesian(clip = "off")  
+  ggsave("sankey_All_Species.png", width = 20, height = 26, units = "cm", dpi = 300)  #Save plot
 
 #Filter top 10 species
 
 top_species <- sankey_data %>%
   group_by(S) %>%
   summarise(total = sum(Frequency)) %>%
-  slice_max(total, n = 10)
+  slice_max(total, n = 12)
 
 sankey_data_top <- sankey_data %>%
   filter(S %in% top_species$S)
 
 #Plot 
-
+sankey_data_top$S <- factor(sankey_data_top$S, levels = sort(unique(sankey_data_top$S)))
 ggplot(sankey_data_top,
-       aes(axis1 = M.N.E.D, axis2 = S, y = Frequency) +
-  geom_alluvium(aes(fill = S), width = 1/7) +
-  geom_stratum(width = 1/7, fill = "white", color = "black") +
-  geom_text(stat = "stratum", aes(label = after_stat(stratum)),
-            size = 3, hjust = -0.1) +
-  scale_x_discrete(limits = c("M.N.E.D", "Species"), expand = c(.1, .1)) +
-  paletteer::scale_fill_paletteer_d("dichromat::BluetoOrange_10") +
+       aes(axis1 = M.N.E.D, axis2 = S, y = Frequency)) +
+  geom_alluvium(aes(fill = S), width = 1/10) +
+  geom_stratum(width = 1/10, fill = "white", color = "black") +
+  geom_text(stat = "stratum",
+  aes(
+    label = after_stat(stratum),
+    hjust = ifelse(after_stat(x) == "M.N.E.D", 1, 0),  # Right-align left side, left-align right side
+    size = ifelse(after_stat(x) == "Species", 2.5, 4)
+  ),
+  fontface = "italic",
+  nudge_x = -0.04,
+            show.legend = FALSE) +
+  scale_size_identity() + 
+  scale_x_discrete(limits = c("M.N.E.D", "Species"), expand = c(0.01,0.01)) +
+  paletteer::scale_fill_paletteer_d("ggthemes_ptol::qualitative", 14, direction = 1)+
   labs(title = "Sankey Diagram: Species Occurrence by Time of Day",
        x = NULL, y = "Number of Observations") +
-  theme_minimal(base_size = 18) +
+  theme_minimal(base_size = 15) +
   theme(
     panel.background = element_rect(fill = "white", color = NA),
     plot.background = element_rect(fill = "white", color = NA),
-    axis.text.y = element_text(size = 10),
-    plot.margin = margin(t = 10, r = 50, b = 10, l = 10),
+    axis.text.y = element_text(size = 3),
+    plot.margin = margin(t = 10, r = 150, b = 10, l = 10),
     legend.position = "none"
   ) +
-  coord_cartesian(clip = "off")
-)
-
-
+  coord_cartesian(clip = "off") 
+  ggsave("sankey_Top12_Species.png", width = 20, height = 26, units = "cm", dpi = 300) #Save plot
 ```
 
