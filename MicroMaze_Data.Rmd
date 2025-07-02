@@ -9,50 +9,248 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
-```{r setup, include=FALSE}
+```{r packages, include=FALSE}
 # Install/Load  libraries
 install.packages("tidyverse")
 install.packages("ggplot2")
 install.packages("dplyr")
 install.packages("paletteer")
+install.packages("igraph")
+install.packages("ggraph")
+install.packages("tidygraph")
+install.packages("ggalluvial")  
+
 
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
 library(paletteer)
+library(dplyr)
+library(tidyr)
+library(tidygraph)
+library(ggraph)
+library(igraph)
+library(ggalluvial)
 ```
-
 
 ```{r convert data to long format}
 
 # Read the CSV file
-data_ALG <- read.csv("MicroMaze 04_2025_Data - Algeria.csv")
-data_DRIE <- read.csv("MicroMaze 04_2025_Data - Driehoek.csv")
-
-# Clean the data: remove rows with missing microclimate data 
-cleaned_data <- data %>%
-  drop_na('Surface Temp (°c)', 'Ground Temp (°c)', 'Wind (m/s^-1)', 'Humidity (%)')
+data_ALG <- read.csv("Data/MicroMazeData 04_2025  - Algeria.csv")
+data_DRIE <- read.csv("Data/MicroMazeData 04_2025  - Driehoek.csv")
 
 
+# Clean the data: remove rows with missing micro-climate data 
+dat_ALG <- data_ALG %>%
+  drop_na('Surface_Temp', 'Ground_Temp', 'Wind_spd', 'Humidity')
+
+dat_DRIE <- data_DRIE %>%
+  drop_na('Surface_Temp', 'Ground_Temp', 'Wind_spd', 'Humidity')
 
 
-# Convert to long format
-long_data <- cleaned_data %>%
+
+
+# Convert ALG to long format
+long_ALG <- dat_ALG %>%
   # Select relevant columns
-  select(Date, `M/N/E/D`, Plot, SampleID,
-         FieldID_1, FieldID_2, FieldID_3,
-         Abundance_1, Abundance_2, Abundance_3) %>%
-  
+  select(Date, M.N.E.D, Plot, SampleID, Surface_Temp, Ground_Temp, Wind_spd, Humidity,
+         FieldID_1, FieldID_2, FieldID_3, FieldID_4,
+         Abundance_1, Abundance_2, Abundance_3, Abundance_4, S_1, S_2, S_3, S_4) %>%
   # Convert abundance columns to numeric
   mutate(across(starts_with("Abundance_"), ~ as.numeric(.))) %>%
-  
   # Pivot to long format
   pivot_longer(
-    cols = c(FieldID_1, FieldID_2, FieldID_3,
-             Abundance_1, Abundance_2, Abundance_3),
+    cols = c(FieldID_1, FieldID_2, FieldID_3, FieldID_4, 
+             Abundance_1, Abundance_2, Abundance_3, Abundance_4, S_1, S_2, S_3, S_4),
     names_to = ".value",
-    names_pattern = "(FieldID|Abundance)"
+    names_pattern = "(FieldID|Abundance|S)"
   ) 
 
+
+
+# Convert DRIE to long format
+long_DRIE <- dat_DRIE %>%
+  # Select relevant columns
+  select(Date, M.N.E.D, Plot, SampleID, Surface_Temp, Ground_Temp, Wind_spd, Humidity,
+         FieldID_1, FieldID_2, FieldID_3, FieldID_4,
+         Abundance_1, Abundance_2, Abundance_3, Abundance_4, S_1, S_2, S_3, S_4) %>%
+  # Convert abundance columns to numeric
+  mutate(across(starts_with("Abundance_"), ~ as.numeric(.))) %>%
+  # Pivot to long format
+  pivot_longer(
+    cols = c(FieldID_1, FieldID_2, FieldID_3, FieldID_4, 
+             Abundance_1, Abundance_2, Abundance_3, Abundance_4, S_1, S_2, S_3, S_4),
+    names_to = ".value",
+    names_pattern = "(FieldID|Abundance|S)"
+  ) 
 ```
+
+```{r combine data into single df}
+
+Long_All <- rbind(long_ALG, long_DRIE)
+```
+
+```{r Species Richness by Time, dev = "png"}
+
+### 1. Species Richness per Plot, grouped by M/N/E/D
+
+# Set M/N/E/D in desired order
+Long_All <- Long_All %>%
+  mutate(M.N.E.D = M.N.E.D %>%
+           str_trim() %>%         # Remove whitespace
+           str_to_upper()         # Convert to uppercase
+  )
+
+Long_All <- Long_All %>%
+  mutate(M.N.E.D = factor(M.N.E.D, levels = c("M", "N", "E", "D"))) %>%
+   mutate(Site = substr(Plot, 1, 4))
+
+
+# Calculate species richness per plot
+species_richness <- Long_All %>%
+  group_by(Plot, M.N.E.D) %>%
+  summarise(SpeciesRichness = n_distinct(S), .groups = "drop")
+
+# Boxplot of richness grouped by M/N/E/D
+ggplot(species_richness, aes(x = M.N.E.D, fill = M.N.E.D, y = SpeciesRichness)) +
+  geom_boxplot() +
+  labs(title = "Species Richness Over a Temporal Gradient",
+       x = "Morning / Noon / Evening / Dark", y = "Species Richness") +
+  paletteer::scale_fill_paletteer_d("PNWColors::Shuksan2") +
+  theme_minimal()
+
+```
+
+```{r Species Abundances by Time, dev = "png"}
+### 2. Abundance of Each Species, grouped by M/N/E/D
+
+
+# Now plot with ordered fill
+ggplot(Long_All, aes(x = S, y = Abundance, fill = `M.N.E.D`)) +
+  geom_boxplot() +
+  labs(title = "Abundance of Each Species over a Temporal Gradient",
+       x = "Species", y = "Abundance") +
+   scale_y_log10() +
+  theme_minimal() +
+  paletteer::scale_fill_paletteer_d("PNWColors::Shuksan2") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+### Same plot, split into sites
+# Create the faceted boxplot
+ggplot(Long_All, aes(x = S, y = Abundance, fill = `M.N.E.D`)) +
+  geom_boxplot(outlier.size = 0.8) +
+  facet_wrap(~ Site, scales = "free_y") +
+  labs(title = "Abundance of Each Species over a Temporal Gradient (Faceted by Site)",
+       x = "Species", y = "Abundance") +
+  scale_y_log10() +
+  theme_minimal() +
+  paletteer::scale_fill_paletteer_d("PNWColors::Shuksan2") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        strip.text = element_text(face = "bold"))
+
+```
+
+```{r Total Abundances by Time, dev = "png"}
+### 3. Total Abundance per Plot, grouped by M/N/E/D
+
+total_abundance <- Long_All %>%
+  group_by(Plot, `M.N.E.D`) %>%
+  summarise(TotalAbundance = sum(Abundance, na.rm = TRUE), .groups = "drop")
+
+# Plot
+ggplot(total_abundance, aes(x = `M.N.E.D`, y = TotalAbundance, fill = `M.N.E.D`)) +
+  geom_boxplot() +
+  paletteer::scale_fill_paletteer_d("PNWColors::Shuksan2")+
+  labs(title = "Total Ant Abundance over a Temporal Gradient ",
+       x = "M/N/E/D", y = "Total Abundance") +
+  theme_minimal()
+```
+
+```{r Network, dev = "png"}
+
+# Create edge list: species linked to M.N.E.D categories
+edges <- Long_All %>%
+  select(S, M.N.E.D) %>%
+  filter(!is.na(S), !is.na(M.N.E.D)) %>%
+  distinct()
+
+edges <- edges %>%
+  mutate(
+    S = str_trim(S),
+    M.N.E.D = str_trim(M.N.E.D)
+  ) %>%
+  filter(S != "", M.N.E.D != "")
+
+nodes <- tibble(name = unique(c(edges$S, edges$M.N.E.D)))
+
+edges_renamed <- edges %>%
+  rename(from = S, to = M.N.E.D)
+
+
+network <- tbl_graph(nodes = nodes, edges = edges_renamed, directed = FALSE)
+
+# Plot it
+ggraph(network, layout = "fr") + 
+  geom_edge_link(alpha = 0.4) +
+  geom_node_point(aes(), size = 5) +
+  geom_node_text(aes(label = name), repel = TRUE, size = 3) +
+  theme_void() +
+  labs(title = "Species–Habitat Type Network")
+```
+
+```{r Sankey Graph, dev= "png"}
+
+sankey_data <- Long_All %>%
+  filter(!is.na(S),S != "", !is.na(M.N.E.D)) %>%
+  count(M.N.E.D, S, name = "Frequency")  # creates a count column
+
+ggplot(sankey_data,
+       aes(axis1 = S, axis2 = M.N.E.D, y = Frequency)) +
+  geom_alluvium(aes(fill = S), width = 1/12) +
+  geom_stratum(width = 1/12, fill = "grey90", color = "black") +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum)),
+            size = 3, hjust = -0.1) +
+  scale_x_discrete(limits = c("Species","M.N.E.D"), expand = c(.1, .1)) +
+  labs(title = "Sankey Diagram: Species Occurrence by Time of Day",
+       x = NULL, y = "Number of Observations") +
+  scale_fill_viridis_d(option = "C") +
+  theme_minimal()
+
+
+#Filter top 10 species
+
+top_species <- sankey_data %>%
+  group_by(S) %>%
+  summarise(total = sum(Frequency)) %>%
+  slice_max(total, n = 10)
+
+sankey_data_top <- sankey_data %>%
+  filter(S %in% top_species$S)
+
+#Plot 
+
+ggplot(sankey_data_top,
+       aes(axis1 = M.N.E.D, axis2 = S, y = Frequency) +
+  geom_alluvium(aes(fill = S), width = 1/7) +
+  geom_stratum(width = 1/7, fill = "white", color = "black") +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum)),
+            size = 3, hjust = -0.1) +
+  scale_x_discrete(limits = c("M.N.E.D", "Species"), expand = c(.1, .1)) +
+  paletteer::scale_fill_paletteer_d("dichromat::BluetoOrange_10") +
+  labs(title = "Sankey Diagram: Species Occurrence by Time of Day",
+       x = NULL, y = "Number of Observations") +
+  theme_minimal(base_size = 18) +
+  theme(
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA),
+    axis.text.y = element_text(size = 10),
+    plot.margin = margin(t = 10, r = 50, b = 10, l = 10),
+    legend.position = "none"
+  ) +
+  coord_cartesian(clip = "off")
+)
+
+
+```
+

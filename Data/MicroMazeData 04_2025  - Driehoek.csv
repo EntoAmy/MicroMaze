@@ -1,5 +1,4 @@
-,MicroMaze,April 2025,Driehoek,,,,,,,,,Ground Measures,,,,,,,,,,,,,,,,,
-,Date,M/N/E/D,Start time,End Time,Plot,General Temp (°c),Genral Humidity (%),General Wind (m/s^-1),Weather notes,Bait Station,SampleID,Surface Temp (°c),Ground Temp (°c),Wind (m/s^-1),Humidity (%),Notes,FieldID_1,FieldID_2,FieldID_3,FieldID_4,Abundance_1,Abundance_2,Abundance_3,Abundance_4,S_1,S_2,S_3,S_4,
+,Date,M/N/E/D,Start time,End Time,Plot,General_Air_Temp,Genral_Humidity,General_Wind,Weather notes,Bait_Station,SampleID,Surface_Temp,Ground_Temp,Wind_spd,Humidity,Notes,FieldID_1,FieldID_2,FieldID_3,FieldID_4,Abundance_1,Abundance_2,Abundance_3,Abundance_4,S_1,S_2,S_3,S_4,
 ,17/03,M ,08:30,09:30,DRIE4,24.1,49.2,0.9,Clear,A1.1,17/03_DRIE4_M _A1.1,29.4,26.6,0.4,45.5,,Lepisiota,,,,10,,,,Lepisiota cf. capensis,,,,
 ,17/03,M ,08:30,09:30,DRIE4,24.1,49.2,0.9,Clear,A1.2,17/03_DRIE4_M _A1.2,29.4,26.6,0.4,45.5,,Lepisiota,,,,10,,,,Lepisiota cf. capensis,,,,
 ,17/03,M ,08:30,09:30,DRIE4,24.1,49.2,0.9,Clear,A2.1,17/03_DRIE4_M _A2.1,33.9,28.1,0.4,42.5,,Lepisiota,Tetramorium,,,2,3,,,Lepisiota cf. capensis,Tetramorium sericeiventre,,,
