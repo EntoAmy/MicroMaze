@@ -1,0 +1,11 @@
+# Install/Load  libraries
+install.packages("tidyverse")
+install.packages("ggplot2")
+install.packages("dplyr")
+install.packages("paletteer")
+install.packages("igraph")
+install.packages("ggraph")
+install.packages("tidygraph")
+install.packages("ggalluvial") 
+install.packages("ggridges")
+install.packages("colorspace")

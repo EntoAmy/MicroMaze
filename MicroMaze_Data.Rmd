@@ -9,17 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r packages, include=FALSE}
-# Install/Load  libraries
-install.packages("tidyverse")
-install.packages("ggplot2")
-install.packages("dplyr")
-install.packages("paletteer")
-install.packages("igraph")
-install.packages("ggraph")
-install.packages("tidygraph")
-install.packages("ggalluvial")  
-
+```{r load packages, include=FALSE}
 
 library(tidyverse)
 library(ggplot2)
@@ -31,6 +21,8 @@ library(tidygraph)
 library(ggraph)
 library(igraph)
 library(ggalluvial)
+library(ggridges)
+library(colorspace)
 ```
 
 ```{r convert data to long format}
@@ -111,14 +103,21 @@ species_richness <- Long_All %>%
   group_by(Plot, M.N.E.D) %>%
   summarise(SpeciesRichness = n_distinct(S), .groups = "drop")
 
+
 # Boxplot of richness grouped by M/N/E/D
 ggplot(species_richness, aes(x = M.N.E.D, fill = M.N.E.D, y = SpeciesRichness)) +
   geom_boxplot() +
   labs(title = "Species Richness Over a Temporal Gradient",
        x = "Morning / Noon / Evening / Dark", y = "Species Richness") +
   paletteer::scale_fill_paletteer_d("PNWColors::Shuksan2") +
-  theme_minimal()
-
+  theme_minimal() + 
+  theme(
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA),
+    axis.text.y = element_text(size = 3),
+    legend.position = "none"
+    )
+ggsave("Figures/Species_Richness_by_Time_OrderedFill.png", width = 20, height = 16, units = "cm", dpi = 300)
 ```
 
 ```{r Species Abundances by Time, dev = "png"}
@@ -133,7 +132,15 @@ ggplot(Long_All, aes(x = S, y = Abundance, fill = `M.N.E.D`)) +
    scale_y_log10() +
   theme_minimal() +
   paletteer::scale_fill_paletteer_d("PNWColors::Shuksan2") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+   theme(axis.text.x = element_text(angle = 65, hjust = 1),
+        strip.text = element_text(face = "bold"),
+        panel.background = element_rect(fill = "white", color = NA),
+        plot.background = element_rect(fill = "white", color = NA),
+        axis.text.y = element_text(size = 3),
+        legend.position = "none"
+    )
+
+ggsave("Figures/Species_Richness_by_Time.png", width = 20, height = 16, units = "cm", dpi = 300)
 
 
 ### Same plot, split into sites
@@ -147,8 +154,13 @@ ggplot(Long_All, aes(x = S, y = Abundance, fill = `M.N.E.D`)) +
   theme_minimal() +
   paletteer::scale_fill_paletteer_d("PNWColors::Shuksan2") +
   theme(axis.text.x = element_text(angle = 65, hjust = 1),
-        strip.text = element_text(face = "bold"))
-
+        strip.text = element_text(face = "bold"),
+        panel.background = element_rect(fill = "white", color = NA),
+        plot.background = element_rect(fill = "white", color = NA),
+        axis.text.y = element_text(size = 3),
+        legend.position = "none"
+    )
+ggsave("Figures/Species_Abundances_by_Time(Split_by_Site).png", width = 30, height = 20, units = "cm", dpi = 300) #Save plot
 ```
 
 ```{r Total Abundances by Time, dev = "png"}
@@ -164,7 +176,15 @@ ggplot(total_abundance, aes(x = `M.N.E.D`, y = TotalAbundance, fill = `M.N.E.D`)
   paletteer::scale_fill_paletteer_d("PNWColors::Shuksan2")+
   labs(title = "Total Ant Abundance over a Temporal Gradient ",
        x = "M/N/E/D", y = "Total Abundance") +
-  theme_minimal()
+  theme_minimal() +
+  theme(
+        strip.text = element_text(face = "bold"),
+        panel.background = element_rect(fill = "white", color = NA),
+        plot.background = element_rect(fill = "white", color = NA),
+        axis.text.y = element_text(size = 3),
+        legend.position = "none"
+    )
+ggsave("Figures/Total_Abundances_by_Time.png", width = 20, height = 16, units = "cm", dpi = 300) #Save plot
 ```
 
 ```{r Network, dev = "png"}
@@ -193,7 +213,7 @@ network <- tbl_graph(nodes = nodes, edges = edges_renamed, directed = FALSE)
 # Plot it
 ggraph(network, layout = "fr") + 
   geom_edge_link(alpha = 0.4) +
-  geom_node_point(aes(), size = 5) +
+  geom_node_point(aes(fill = "M.N.E.D"), size = 5) +
   geom_node_text(aes(label = name), repel = TRUE, size = 3) +
   theme_void() +
   labs(title = "Species–Habitat Type Network")
@@ -203,7 +223,7 @@ ggraph(network, layout = "fr") +
 
 sankey_data <- Long_All %>%
   filter(!is.na(S),S != "", !is.na(M.N.E.D)) %>%
-  count(M.N.E.D, S, name = "Frequency")  # creates a count column
+  count(M.N.E.D, S, name = "Frequency")  
 
 sankey_data$S <- factor(sankey_data$S, levels = sort(unique(sankey_data$S)))
 
@@ -217,9 +237,10 @@ ggplot(sankey_data,
             fontface = "italic", hjust = 0.3, show.legend = FALSE) +
   scale_size_identity() + 
   scale_x_discrete(limits = c("M.N.E.D", "Species"), expand = c(0.01,0.01)) +
-  paletteer::scale_fill_paletteer_d("ggsci::default_igv", direction = 1)+
   labs(title = "Sankey Diagram: Species Occurrence by Time of Day",
        x = NULL, y = "Number of Observations", size = 4) +
+  scale_fill_discrete_qualitative(palette = "Set 2") +
+  scale_fill_discrete_qualitative(palette = "Set 2") +
   theme_minimal(base_size = 15) +
   theme(
     panel.background = element_rect(fill = "white", color = NA),
@@ -229,9 +250,12 @@ ggplot(sankey_data,
     legend.position = "none"
   ) +
   coord_cartesian(clip = "off")  
-  ggsave("sankey_All_Species.png", width = 20, height = 26, units = "cm", dpi = 300)  #Save plot
+  ggsave("Figures/sankey_All_Species.png", width = 20, height = 26, units = "cm", dpi = 300)  #Save plot
 
-#Filter top 10 species
+  
+  
+  
+#Filter and Redo Sankey Plot for top 12 species
 
 top_species <- sankey_data %>%
   group_by(S) %>%
@@ -243,10 +267,11 @@ sankey_data_top <- sankey_data %>%
 
 #Plot 
 sankey_data_top$S <- factor(sankey_data_top$S, levels = sort(unique(sankey_data_top$S)))
+
 ggplot(sankey_data_top,
        aes(axis1 = M.N.E.D, axis2 = S, y = Frequency)) +
   geom_alluvium(aes(fill = S), width = 1/10) +
-  geom_stratum(width = 1/10, fill = "white", color = "black") +
+  geom_stratum(width = 1/10, fill = "white", color = "lightgrey") +
   geom_text(stat = "stratum",
   aes(
     label = after_stat(stratum),
@@ -258,7 +283,7 @@ ggplot(sankey_data_top,
             show.legend = FALSE) +
   scale_size_identity() + 
   scale_x_discrete(limits = c("M.N.E.D", "Species"), expand = c(0.01,0.01)) +
-  paletteer::scale_fill_paletteer_d("ggthemes_ptol::qualitative", 14, direction = 1)+
+  scale_fill_discrete_qualitative(palette = "Set 2") +
   labs(title = "Sankey Diagram: Species Occurrence by Time of Day",
        x = NULL, y = "Number of Observations") +
   theme_minimal(base_size = 15) +
@@ -270,6 +295,345 @@ ggplot(sankey_data_top,
     legend.position = "none"
   ) +
   coord_cartesian(clip = "off") 
-  ggsave("sankey_Top12_Species.png", width = 20, height = 26, units = "cm", dpi = 300) #Save plot
+
+  ggsave("Figures/sankey_Top12_Species.png", width = 24, height = 32, units = "cm", dpi = 300)
 ```
 
+```{r Smooth Ridgeline plot, dev = ".png", fig.width=9.5, fig.height=11.69}
+
+# Prepare your data
+relative_data <- Long_All %>%
+  filter(!is.na(S), !is.na(Abundance), !is.na(M.N.E.D)) %>%
+  group_by(S) %>%
+  mutate(TotalAbundance = sum(Abundance, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(RelativeAbundance = (Abundance / TotalAbundance) * 100)
+
+SmoothRidgeData <- relative_data %>%
+  filter(!is.na(S), !is.na(M.N.E.D)) %>%
+  mutate(
+    S = factor(S, levels = sort(unique(S))),
+    M.N.E.D = as.numeric(M.N.E.D),
+    S_italic = paste0("italic('", S, "')")
+  )
+
+# Plot with KDE ridgelines
+ggplot(SmoothRidgeData, aes(x = M.N.E.D, y = S, fill = S, colour = S)) +
+  geom_density_ridges(
+    scale = 1.7,
+    alpha = 0.4,
+    size = 0.9
+  ) +
+  scale_x_continuous(
+  breaks = 1:4,
+  labels = c("Morning", "Noon", "Evening", "Dark")
+  ) +
+  labs(
+    x = NULL, 
+    y = NULL,
+    title = "Relative Abundance Density per Species \nacross the Temporal Scale"
+  ) +
+  theme_minimal(base_size = 16) +
+  theme(
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA),
+    legend.position = "none",
+    axis.text.y = element_text(size = 11, vjust = 0.5),
+    axis.text.x = element_text(size = 11),
+    panel.grid.major.y = element_line(color = "gray80", size = 0.3),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.title.x = element_blank(),
+    plot.margin = margin(t = 15, r = 15, b = 15, l = 15),
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 16,
+      face = "bold",
+      lineheight = 1.2,
+      margin = margin(b = 10)
+    )
+  ) + 
+  scale_fill_discrete_qualitative(palette = "Set 2") +
+  scale_color_discrete_qualitative(palette = "Set 2")
+
+
+
+
+ggsave("Figures/Smooth_Ridgeline.png", width = 21, height = 29.7, units = "cm", dpi = 300)
+```
+
+```{r Discrete Ridgeline plot, dev = ".png", fig.width=8.27, fig.height=11.69}
+
+RidgeData <- relative_data %>%
+  filter(!is.na(S), !is.na(M.N.E.D), !is.na(RelativeAbundance)) %>%
+  mutate(
+    S = factor(S, levels = sort(unique(S))),                 
+    M.N.E.D = factor(M.N.E.D, levels = c("M", "N", "E", "D")), 
+    S_italic = paste0("italic('", S, "')")                   
+  )
+
+
+# Create numeric y positions with gaps between rows
+species_levels <- sort(unique(RidgeData$S))
+y_positions <- seq(1, by = 30, length.out = length(species_levels))  # 1,3,5,7,...
+
+# Add numeric y to RidgeData
+RidgeData2 <- RidgeData %>%
+  mutate(
+    S_num = as.numeric(factor(S, levels = species_levels)),
+    S_num_spaced = 30 * S_num - 1  # makes 1,3,5,... to create gaps
+  )
+
+# Create a named vector for labels, placed at correct positions
+y_labels <- setNames(species_levels, y_positions)
+
+# Plot using numeric y, set breaks and labels manually, parse labels for italics
+ggplot(RidgeData2, aes(x = M.N.E.D, y = S_num_spaced, fill = S, colour = S)) +
+  geom_density_ridges(
+    stat = "binline",
+    bins = length(unique(RidgeData$M.N.E.D)),
+    scale = 1,
+    draw_baseline = TRUE,
+    alpha = 0.6,
+    rel_min_height = 1,
+    size = 1
+  ) +
+  scale_y_continuous(
+    breaks = y_positions,
+    labels = parse(text = paste0("italic('", y_labels, "')")),
+    expand = expansion(mult = c(0.04, 0.04))  
+  ) +
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "Relative Abundance of Species\nacross the M.N.E.D. Temporal Scale"
+  ) +
+  theme_minimal(base_size = 16) +  
+  theme(
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA),
+    legend.position = "none",
+    axis.text.y = element_text(size = 11, vjust = 0.5),
+    axis.text.x = element_text(size = 11),
+    panel.grid.major.y = element_line(color = "gray80", size = 0.3),
+    panel.grid.minor.y = element_blank(),
+    axis.title.x = element_blank(),
+    plot.margin = margin(t = 15, r = 15, b = 15, l = 15), 
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 16,
+      face = "bold",
+      lineheight = 1.2,
+      margin = margin(b = 10)
+    )
+  ) + 
+  scale_fill_discrete_qualitative(palette = "Set 2") +
+  scale_color_discrete_qualitative(palette = "Set 2")
+
+
+ggsave("Figures/RA_Ridgeline_Discrete.png", width = 18, height =25, units = "cm", dpi = 300)
+```
+
+
+
+```{r Repeat all plots with where only IDs to species level are used}
+
+###Sankey PLot (Top 12)
+
+Sankey_Data_SID <- sankey_data %>%
+   mutate(S = S %>%
+           str_trim()  )  %>%
+filter(!is.na(S), str_detect(S, "\\s+")) 
+
+
+
+top_species_SID <- Sankey_Data_SID %>%
+  group_by(S) %>%
+  summarise(total = sum(Frequency)) %>%
+  slice_max(total, n = 12)
+
+sankey_data_top_SID <- Sankey_Data_SID %>%
+  filter(S %in% top_species_SID$S)
+
+#Plot 
+sankey_data_top_SID$S <- factor(sankey_data_top_SID$S, levels = sort(unique(sankey_data_top$S)))
+
+ggplot(sankey_data_top_SID,
+       aes(axis1 = M.N.E.D, axis2 = S, y = Frequency)) +
+  geom_alluvium(aes(fill = S), width = 1/10) +
+  geom_stratum(width = 1/10, fill = "white", color = "lightgrey") +
+  geom_text(stat = "stratum",
+  aes(
+    label = after_stat(stratum),
+    hjust = ifelse(after_stat(x) == "M.N.E.D", 1, 0),  # Right-align left side, left-align right side
+    size = ifelse(after_stat(x) == "Species", 2.5, 4)
+  ),
+  fontface = "italic",
+  nudge_x = -0.04,
+            show.legend = FALSE) +
+  scale_size_identity() + 
+  scale_x_discrete(limits = c("M.N.E.D", "Species"), expand = c(0.01,0.01)) +
+  scale_fill_discrete_qualitative(palette = "Set 2") +
+  labs(title = "Sankey Diagram: Species Occurrence by Time of Day",
+       x = NULL, y = "Number of Observations") +
+  theme_minimal(base_size = 15) +
+  theme(
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA),
+    axis.text.y = element_text(size = 3),
+    plot.margin = margin(t = 10, r = 150, b = 10, l = 10),
+    legend.position = "none"
+  ) +
+  coord_cartesian(clip = "off") 
+
+  ggsave("Figures/sankey_Top12_Species_CorrectIDs.png", width = 24, height = 32, units = "cm", dpi = 300) 
+  
+
+  
+###Smooth Ridgeline 
+  
+  
+# Prepare your data
+
+SmoothRidgeData_SID <- relative_data %>%
+  filter(!is.na(S), !is.na(M.N.E.D)) %>%
+  mutate(S = S %>%
+           str_trim()  )  %>%
+  filter(!is.na(S), str_detect(S, "\\s+")) %>%
+  mutate(
+    S = factor(S, levels = sort(unique(S))),
+    M.N.E.D = as.numeric(M.N.E.D)
+  )
+
+
+
+# Plot with KDE ridgelines
+ggplot(SmoothRidgeData_SID, aes(x = M.N.E.D, y = S, fill = S, colour = S)) +
+  geom_density_ridges(
+    scale = 1.7,
+    alpha = 0.4,
+    size = 0.9
+  ) +
+  scale_x_continuous(
+  breaks = 1:4,
+  labels = c("Morning", "Noon", "Evening", "Dark")
+  ) +
+  labs(
+    x = NULL, 
+    y = NULL,
+    title = "Relative Abundance Density per Species \nacross the Temporal Scale"
+  ) +
+  theme_minimal(base_size = 16) +
+  theme(
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA),
+    legend.position = "none",
+    axis.text.y = element_text(size = 11, vjust = 0.5),
+    axis.text.x = element_text(size = 11),
+    panel.grid.major.y = element_line(color = "gray80", size = 0.3),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.title.x = element_blank(),
+    plot.margin = margin(t = 15, r = 15, b = 15, l = 15),
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 16,
+      face = "bold",
+      lineheight = 1.2,
+      margin = margin(b = 10)
+    )
+  ) + 
+  scale_fill_discrete_qualitative(palette = "Set 2") +
+  scale_color_discrete_qualitative(palette = "Set 2")
+
+
+
+
+ggsave("Figures/Smooth_Ridgeline_Correct_IDs.png", width = 21, height = 29.7, units = "cm", dpi = 300)
+
+
+
+
+###Discrete Ridgeline 
+
+RidgeData_SID <- Rel_Data_SpeciesID %>%
+  filter(!is.na(S), !is.na(M.N.E.D), !is.na(RelativeAbundance)) %>%
+  mutate(S = str_trim(S) )  %>%
+  filter(str_detect(S, "\\s+")) %>%
+  mutate(
+    S = factor(S, levels = sort(unique(S))),                 
+    M.N.E.D = factor(M.N.E.D, levels = c("M", "N", "E", "D")), 
+    S_italic = paste0("italic('", S, "')")                   
+  )
+
+
+# Create numeric y positions with gaps between rows
+species_levels <- sort(unique(RidgeData2_SID$S))
+y_positions <- RidgeData2_SID %>%
+  distinct(S, S_num_spaced) %>%
+  arrange(S) %>%
+  pull(S_num_spaced)
+
+# Add numeric y to RidgeData
+RidgeData2_SID <- RidgeData_SID %>%
+  mutate(
+    S_num = as.numeric(factor(S, levels = species_levels)),
+    S_num_spaced = 30 * S_num - 1  # makes 1,3,5,... to create gaps
+  )
+
+# Create a named vector for labels, placed at correct positions
+y_labels <- levels(RidgeData2_SID$S)
+
+# Plot 
+ggplot(RidgeData2_SID, aes(x = M.N.E.D, y = S_num_spaced, fill = S, colour = S)) +
+  geom_density_ridges(
+    stat = "binline",
+    bins = length(unique(RidgeData$M.N.E.D)),
+    scale = 1,
+    draw_baseline = TRUE,
+    alpha = 0.6,
+    rel_min_height = 1,
+    size = 1
+  ) +
+  scale_y_continuous(
+    breaks = y_positions,
+    labels = parse(text = paste0("italic('", y_labels, "')")),
+    expand = expansion(mult = c(0.04, 0.04))  
+  ) +
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "Relative Abundance of Species\nacross the M.N.E.D. Temporal Scale"
+  ) +
+  theme_minimal(base_size = 16) +  
+  theme(
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA),
+    legend.position = "none",
+    axis.text.y = element_text(size = 11, vjust = 0),
+    axis.text.x = element_text(size = 11),
+    panel.grid.major.y = element_line(color = "gray80", size = 0.3),
+    panel.grid.minor.y = element_blank(),
+    axis.title.x = element_blank(),
+    plot.margin = margin(t = 15, r = 15, b = 15, l = 15), 
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 16,
+      face = "bold",
+      lineheight = 1.2,
+      margin = margin(b = 10)
+    )
+  ) + 
+  scale_fill_discrete_qualitative(palette = "Set 2") +
+  scale_color_discrete_qualitative(palette = "Set 2")
+
+
+ggsave("Figures/RA_Ridgeline_Discrete_CorrectIDs.png", width = 18, height =25, units = "cm", dpi = 300)
+
+  
+```
+
+
+```
